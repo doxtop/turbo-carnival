@@ -1,0 +1,6 @@
+queue:
+- name: counters
+  mode: push
+  rate: 35/s
+  retry_parameters:
+    task_retry_limit: 1

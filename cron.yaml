@@ -1,0 +1,4 @@
+cron:
+- description: mem to disk
+  url: /counters/persist
+  schedule: every 2 minutes
