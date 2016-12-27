@@ -13,6 +13,11 @@ const(
   countGroup = 25
 )
 
+type Entity struct {
+  Name    string `json:"id" datastore:"name"`
+  Payload string `json:"count" datastore:"count"`
+}
+
 func (e *Entity) Key(key *datastore.Key) {e.Name = key.Encode()}
 func (e *Entity) Set(v string){e.Payload = v}
 func (e *Entity) Point() {e.Payload = "0"}
