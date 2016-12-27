@@ -20,3 +20,5 @@ type Entity struct {
 func Jsonf(key *datastore.Key, c *Entity)(struct{Id string `json:"id"`;Value string `json:"count"`}) {
   return struct {Id string `json:"id"`;Value string `json:"count"`}{key.Encode(),c.Payload,}
 }
+
+func Entityf() {}

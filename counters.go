@@ -22,7 +22,7 @@ func create(w http.ResponseWriter, r *http.Request){
   }
   ctx   := appengine.NewContext(r)
   c     := new(Entity)
-  rk,err:= Store(ctx, "Counter", c)
+  rk,err:= c.Store(ctx, "Counter")
 
   if err!=nil {
     http.Error(w, fmt.Sprintf("Can't process entity: %v",err), 422)
@@ -33,57 +33,51 @@ func create(w http.ResponseWriter, r *http.Request){
   json.NewEncoder(w).Encode(Jsonf(rk, c))
 }
 
-func 
-
 // get,update counter value
 func counter(w http.ResponseWriter, r *http.Request){
-  ctx := appengine.NewContext(r)
+  ctx   := appengine.NewContext(r)
+  k,err := datastore.DecodeKey(strings.Split(strings.TrimSpace(r.URL.Path), "/")[2]); 
+
+  if err!=nil{
+    http.Error(w, fmt.Sprintf("Mailformed key: %v", err), 422)
+    return
+  }
+
+  c := new(Entity)
 
   switch r.Method {
     case "GET": 
-      k,err := datastore.DecodeKey(strings.Split(strings.TrimSpace(r.URL.Path), "/")[2]); 
-
-      if err!=nil{
-        http.Error(w, fmt.Sprintf("Mailformed key: %v", err), 422)
+      if err := c.Count(ctx, "Counter");err!=nil {
+        http.Error(w, fmt.Sprintf("No entry: %v", err), 404)
         return
       }
-      var c = Entity{"0"}
-      if err = datastore.Get(ctx, k, &c); err!=nil {
-        http.Error(w, fmt.Sprintf("No such entry: %v", err), 404)
-        return
-      }
-      //c.Point(k)
-  
-      w.Header().Set("Content-Type","application-json")
-      json.NewEncoder(w).Encode(Jsonf(k,&c))
-
     case "PUT","POST":
-      k,err := datastore.DecodeKey(strings.Split(strings.TrimSpace(r.URL.Path), "/")[2]);
+      var d struct {Id string `json:"id"`;Value string `json:"count"`}
 
-      if err!=nil{
-        http.Error(w, fmt.Sprintf("Mailformed key: %v", err), 422)
-        return
-      }
-
-      var c Entity
-      if err := json.NewDecoder(r.Body).Decode(&c); err!=nil{
-        log.Infof(ctx, "Fail %v", err)
+      if err := json.NewDecoder(r.Body).Decode(&d); err!=nil{
         http.Error(w, fmt.Sprintf("Mailformed counter: %v", err), 422)
       }
       defer r.Body.Close()
 
-      rk,err := datastore.Put(ctx,k,&c);
-      if err!=nil {
+      c.Set(d.Value)
+      
+      if _,err := c.Store(ctx,"Counter");err!=nil{
         http.Error(w, fmt.Sprintf("Can't process entity: %s",err.Error()), 422)
         return
-      } 
-
-      w.Header().Set("Content-Type","application-json")
-      json.NewEncoder(w).Encode(Jsonf(rk,&c))
+      }
+      
+      if err:= c.Count(ctx, "Counter");err!=nil{
+        http.Error(w, fmt.Sprintf("Broken link: %s",err.Error()), 422)
+        return
+      }
 
     default:
       http.Error(w, fmt.Sprintf("Method not supported %v", r.Method), 405)
+      return
   }
+
+  w.Header().Set("Content-Type","application-json")
+  json.NewEncoder(w).Encode(Jsonf(k,c))  
 }
 
 // list all
