@@ -105,6 +105,7 @@ func list(w http.ResponseWriter, r *http.Request){
         }
       }
 
+      // map shoud somehow be serialized without this slice
       for k := range set {
         cs = append(cs, Entity{k,set[k]})
       }
@@ -112,7 +113,6 @@ func list(w http.ResponseWriter, r *http.Request){
       w.Header().Set("Content-Type","application-json")
       json.NewEncoder(w).Encode(&cs)
     case "POST", "PUT":
-      // queue
       h := make(http.Header)
       
       var bts []byte
@@ -140,16 +140,15 @@ func list(w http.ResponseWriter, r *http.Request){
 
         k := datastore.NewKey(ctx,"Task",task.Name,0,nil)
 
-        log.Infof(ctx,"taskKey %v",k)
+        log.Infof(ctx,"taskKey %v",k.Encode())
         
-        c := Entity{k.Encode(), "in-progress"}
+        c := Entity{k.Encode(), "in_progress"}
 
         if _,err := datastore.Put(ctx,k,&c); err!=nil{
           log.Infof(ctx, "Can't save task %v", err.Error())
+          http.Error(w,fmt.Sprintf("Queue can't be tracked: %s", err.Error) ,500)
         }
-
         w.Header().Set("Content-Type","application-json")
-        c.Key(k)
         json.NewEncoder(w).Encode(&c)
       }
 
@@ -158,46 +157,7 @@ func list(w http.ResponseWriter, r *http.Request){
   }
 }
 
-// handle queue task
-func queue(w http.ResponseWriter, r *http.Request) {
-  ctx := appengine.NewContext(r)
-  name := r.Header.Get("X-AppEngine-TaskName")
 
-  log.Infof(ctx, "this is queue handler for %v", name)
-
-  var cs []struct{Id string;Value string}
-  if err := json.NewDecoder(r.Body).Decode(&cs); err!=nil {
-    log.Infof(ctx, "Decode failed: %s", err.Error())
-    // put the err into db
-    return
-  }
-  defer r.Body.Close()
-
-  for i,c := range cs {
-    if k,err := datastore.DecodeKey(c.Id); err!=nil{
-      cs[i].Value = fmt.Sprintf("Invalid key: %s", err.Error())
-    } else {
-      if _,err := datastore.Put(ctx,k,&c); err!=nil {
-        log.Infof(ctx, "some shit happened %v", err)
-        cs[i].Value = fmt.Sprintf("", err.Error())
-      }
-    }
-  }
-
-  log.Infof(ctx, "Will encode this: %v", &cs)
-
-  k := datastore.NewKey(ctx,"Task",name,0,nil)
-  x := Entity{k.Encode(),"done"}
-
-  if _,err := datastore.Put(ctx,k,&x); err!=nil{
-    log.Infof(ctx, "Tak update error", err.Error())
-  }
-
-  w.Header().Set("Content-Type", "application-json")
-  x.Key(k)
-  json.NewEncoder(w).Encode(&x)
-
-}
 
 func task(w http.ResponseWriter, r *http.Request){
   if(r.Method != "GET"){
