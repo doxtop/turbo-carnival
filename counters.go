@@ -5,14 +5,9 @@ import (
   "strings"
   "html/template"
   "net/http"
-  "io/ioutil"
-  "bytes"
   "encoding/json"
   "google.golang.org/appengine"
   "google.golang.org/appengine/datastore"
-  "google.golang.org/appengine/taskqueue"
-  "google.golang.org/appengine/log"
-  //"google.golang.org/appengine/memcache" - no memory caching for the moment
 )
 
 func create(w http.ResponseWriter, r *http.Request){
@@ -113,86 +108,21 @@ func list(w http.ResponseWriter, r *http.Request){
       w.Header().Set("Content-Type","application-json")
       json.NewEncoder(w).Encode(&cs)
     case "POST", "PUT":
-      h := make(http.Header)
-      
-      var bts []byte
-      bts,err := ioutil.ReadAll(r.Body)
-
-      if(err!=nil){
-        http.Error(w, fmt.Sprintf("Error reading request:%v", err.Error()), 422)
-        return
-      }
-      r.Body = ioutil.NopCloser(bytes.NewBuffer(bts))
-
-      h.Set("Content-Type", "application/json")
-      t := taskqueue.Task{
-        Path: "/counters/queue",
-        Payload: bts,
-        Method: "POST",
-        Header: h,
-      }
-
-      if task, err := taskqueue.Add(ctx, &t, "counters");err!=nil {
-        http.Error(w, err.Error(), 500)
-        return
-      } else {
-        log.Infof(ctx, "Task added: %v", task.Name)
-
-        k := datastore.NewKey(ctx,"Task",task.Name,0,nil)
-
-        log.Infof(ctx,"taskKey %v",k.Encode())
-        
-        c := Entity{k.Encode(), "in_progress"}
-
-        if _,err := datastore.Put(ctx,k,&c); err!=nil{
-          log.Infof(ctx, "Can't save task %v", err.Error())
-          http.Error(w,fmt.Sprintf("Queue can't be tracked: %s", err.Error) ,500)
-        }
-        w.Header().Set("Content-Type","application-json")
-        json.NewEncoder(w).Encode(&c)
-      }
+      enqueue(w,r)
 
     default:
       http.Error(w, fmt.Sprintf("Method not supported %v", r.Method), 405)
   }
 }
 
-
-
-func task(w http.ResponseWriter, r *http.Request){
-  if(r.Method != "GET"){
-    http.Error(w, "Method not supported", 405)
-    return
-  }
-  ctx := appengine.NewContext(r)
- 
-  k,err := datastore.DecodeKey(strings.Split(strings.TrimSpace(r.URL.Path), "/")[2]); 
-
-  if err!=nil{
-    http.Error(w, fmt.Sprintf("Mailformed key: %v", err), 422)
-    return
-  }
-
-  var c Entity
-  if err = datastore.Get(ctx, k, &c); err!=nil {
-    http.Error(w, fmt.Sprintf("No such entry: %v", err), 404)
-    return
-  }
-  
-  w.Header().Set("Content-Type","application-json")
-  c.Key(k)
-  json.NewEncoder(w).Encode(&c)
-}
-
 func persist(w http.ResponseWriter, r *http.Request){
-  ctx := appengine.NewContext(r)
-  log.Infof(ctx, "periodic persist")
+  //ctx := appengine.NewContext(r)
 }
 
 // entry point
 func init() {
   http.HandleFunc("/counters/persist", persist)
-  http.HandleFunc("/tasks/",          task)
+  http.HandleFunc("/tasks/",          status)
   http.HandleFunc("/counters/queue",  queue)
   http.HandleFunc("/counters",        list)
   http.HandleFunc("/counter/",        counter)
@@ -205,7 +135,11 @@ func index(w http.ResponseWriter, r *http.Request){
     <!doctype html>
     <html>
       <head><title>counters</title></head>
-      <body><p>counters</p></body>
+      <body><dl>
+        <dt>create counter</dt>
+        <dt>curl -i -X POST https://focus-pottery-153219.appspot.com/counter</dt>
+        <dd></dd>
+      </dl></body>
     </html>`)).Execute(w, map[string]interface{}{}); err!=nil{
     http.Error(w, err.Error(), 500)
   }
