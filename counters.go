@@ -21,16 +21,16 @@ func create(w http.ResponseWriter, r *http.Request){
     return
   }
   ctx   := appengine.NewContext(r)
-  c     := new(Entity)
-  rk,err:= c.Store(ctx, "Counter")
+  key   := datastore.NewKey(ctx,"Counter","",0,nil)
+  c     := Entity{key.Encode(),"0"}
 
-  if err!=nil {
+  if _,err:= c.Store(ctx, "Counter");err!=nil {
     http.Error(w, fmt.Sprintf("Can't process entity: %v",err), 422)
     return
-  } 
-  
+  }
+
   w.Header().Set("Content-Type", "application-json")
-  json.NewEncoder(w).Encode(Jsonf(rk, c))
+  json.NewEncoder(w).Encode(&c)
 }
 
 // get,update counter value
@@ -43,7 +43,7 @@ func counter(w http.ResponseWriter, r *http.Request){
     return
   }
 
-  c := new(Entity)
+  c := Entity{k.Encode(),"0"}
 
   switch r.Method {
     case "GET": 
@@ -52,14 +52,10 @@ func counter(w http.ResponseWriter, r *http.Request){
         return
       }
     case "PUT","POST":
-      var d struct {Id string `json:"id"`;Value string `json:"count"`}
-
-      if err := json.NewDecoder(r.Body).Decode(&d); err!=nil{
+      if err := json.NewDecoder(r.Body).Decode(&c); err!=nil{
         http.Error(w, fmt.Sprintf("Mailformed counter: %v", err), 422)
       }
       defer r.Body.Close()
-
-      c.Set(d.Value)
       
       if _,err := c.Store(ctx,"Counter");err!=nil{
         http.Error(w, fmt.Sprintf("Can't process entity: %s",err.Error()), 422)
@@ -70,14 +66,13 @@ func counter(w http.ResponseWriter, r *http.Request){
         http.Error(w, fmt.Sprintf("Broken link: %s",err.Error()), 422)
         return
       }
-
     default:
       http.Error(w, fmt.Sprintf("Method not supported %v", r.Method), 405)
       return
   }
 
   w.Header().Set("Content-Type","application-json")
-  json.NewEncoder(w).Encode(Jsonf(k,c))  
+  json.NewEncoder(w).Encode(&c)  
 }
 
 // list all
@@ -99,11 +94,12 @@ func list(w http.ResponseWriter, r *http.Request){
         if(err == datastore.Done){ break }
         if(err!=nil){
           x.Payload = err.Error()
-          cs = append(cs, Jsonf(k, &x))
+          x.Key(k)
+          cs = append(cs, &x)
           break
         }
-        //x.Point(k)
-        cs = append(cs,Jsonf(k,&x))
+        x.Key(k)
+        cs = append(cs, &x)
       }
       
       w.Header().Set("Content-Type","application-json")
@@ -113,7 +109,6 @@ func list(w http.ResponseWriter, r *http.Request){
       h := make(http.Header)
       
       var bts []byte
-      //defer r.Body.Close()
       bts,err := ioutil.ReadAll(r.Body)
 
       if(err!=nil){
@@ -140,14 +135,15 @@ func list(w http.ResponseWriter, r *http.Request){
 
         log.Infof(ctx,"taskKey %v",k)
         
-        c := Entity{"in-progress"}
+        c := Entity{k.Encode(), "in-progress"}
 
         if _,err := datastore.Put(ctx,k,&c); err!=nil{
           log.Infof(ctx, "Can't save task %v", err.Error())
         }
 
         w.Header().Set("Content-Type","application-json")
-        json.NewEncoder(w).Encode(Jsonf(k,&c))
+        c.Key(k)
+        json.NewEncoder(w).Encode(&c)
       }
 
     default:
@@ -184,14 +180,15 @@ func queue(w http.ResponseWriter, r *http.Request) {
   log.Infof(ctx, "Will encode this: %v", &cs)
 
   k := datastore.NewKey(ctx,"Task",name,0,nil)
-  x := Entity{"done"}
+  x := Entity{k.Encode(),"done"}
 
   if _,err := datastore.Put(ctx,k,&x); err!=nil{
     log.Infof(ctx, "Tak update error", err.Error())
   }
 
   w.Header().Set("Content-Type", "application-json")
-  json.NewEncoder(w).Encode(Jsonf(k, &x))
+  x.Key(k)
+  json.NewEncoder(w).Encode(&x)
 
 }
 
@@ -216,14 +213,13 @@ func task(w http.ResponseWriter, r *http.Request){
   }
   
   w.Header().Set("Content-Type","application-json")
-  json.NewEncoder(w).Encode(Jsonf(k,&c))
+  c.Key(k)
+  json.NewEncoder(w).Encode(&c)
 }
 
 func persist(w http.ResponseWriter, r *http.Request){
-  // take the memory
   ctx := appengine.NewContext(r)
   log.Infof(ctx, "periodic persist")
-  // store to disk
 }
 
 // entry point
