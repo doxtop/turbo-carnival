@@ -42,7 +42,6 @@ func counter(w http.ResponseWriter, r *http.Request){
     http.Error(w, fmt.Sprintf("Mailformed key: %v", err), 422)
     return
   }
-
   c := Entity{k.Encode(),"0"}
 
   switch r.Method {
@@ -78,28 +77,36 @@ func counter(w http.ResponseWriter, r *http.Request){
 // list all
 func list(w http.ResponseWriter, r *http.Request){
   ctx := appengine.NewContext(r)
-  log.Infof(ctx, "Request to fucking list %v ", r.Method)
 
   switch r.Method {
     case "GET": 
-      q :=datastore.NewQuery("Counter").Limit(10)
-      cs := make([]interface{}, 0, 10)
+      q   := datastore.NewQuery("Counter").KeysOnly()
+      set := make(map[string]string)
+      cs  := make([]interface{}, 0)
+      t   := q.Run(ctx)
 
-      //_,err := q.GetAll(ctx, &cs)
-      t := q.Run(ctx)
       for {
-        var x Entity
+        var x datastore.Key
         k,err := t.Next(&x)
         
         if(err == datastore.Done){ break }
-        if(err!=nil){
-          x.Payload = err.Error()
-          x.Key(k)
-          cs = append(cs, &x)
-          break
+        if(err!=nil){ break }
+        
+        name :=  strings.Split(k.StringID(), "-")[1]
+        _,ok := set[name]
+
+        if !ok {
+          c := Entity{name,"0"}
+          if err := c.Count(ctx, "Counter");err!=nil{
+            set[name] = err.Error()
+          } else {
+            set[name] = c.Payload
+          }
         }
-        x.Key(k)
-        cs = append(cs, &x)
+      }
+
+      for k := range set {
+        cs = append(cs, Entity{k,set[k]})
       }
       
       w.Header().Set("Content-Type","application-json")
