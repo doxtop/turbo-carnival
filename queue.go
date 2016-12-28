@@ -12,21 +12,28 @@ import (
   "google.golang.org/appengine/taskqueue"
 )
 
+type Entity struct {
+  Name    string `json:"id"`
+  Payload string `json:"count" datastore:",noindex"`
+}
+
+func (e *Entity) Key(key *datastore.Key) {e.Name = key.Encode()}
+
 func queue(w http.ResponseWriter, r *http.Request) {
   ctx   := appengine.NewContext(r)
   name  := r.Header.Get("X-AppEngine-TaskName")
   key   := datastore.NewKey(ctx,"Task",name,0,nil)
 
-  var cs []Entity
+  var cs []Counter
   _ = json.NewDecoder(r.Body).Decode(&cs)
   defer r.Body.Close()
 
   for _,c := range cs {
-    if _,err := c.Store(ctx,"Counter");err!=nil{
+    if _,err := c.Store(ctx);err!=nil{
       c.Set(err.Error())
       break
     }
-    if err:= c.Count(ctx, "Counter");err!=nil{
+    if err:= c.Collect(ctx);err!=nil{
       c.Set(err.Error())
     }
   }

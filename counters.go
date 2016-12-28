@@ -8,25 +8,23 @@ import (
   "encoding/json"
   "google.golang.org/appengine"
   "google.golang.org/appengine/datastore"
-  //"google.golang.org/appengine/log"
+  "google.golang.org/appengine/log"
 )
 
-/*
- * 
- */
 func create(w http.ResponseWriter, r *http.Request){
   if(r.Method != "POST"){
     http.Error(w, "Method not supported", 405)
     return
   }
-  ctx   := appengine.NewContext(r)
-  key   := datastore.NewKey(ctx,"Counter","",0,nil)
-  c     := Entity{key.Encode(),"0"}
-
-  if _,err:= c.Store(ctx, "Counter");err!=nil {
+  ctx := appengine.NewContext(r)
+  c   := new(Counter)
+  
+  if _,err:= c.Store(ctx);err!=nil {
     http.Error(w, fmt.Sprintf("Can't process entity: %v",err), 422)
     return
   }
+
+  log.Infof(ctx, "%v created", c)
 
   w.Header().Set("Content-Type", "application-json")
   json.NewEncoder(w).Encode(&c)
@@ -41,11 +39,11 @@ func counter(w http.ResponseWriter, r *http.Request){
     http.Error(w, fmt.Sprintf("Mailformed key: %v", err), 422)
     return
   }
-  c := Entity{k.Encode(),"0"}
+  c := Counter{k.Encode(),"0"}
 
   switch r.Method {
     case "GET": 
-      if err := c.Count(ctx, "Counter");err!=nil {
+      if err := c.Collect(ctx);err!=nil {
         http.Error(w, fmt.Sprintf("No entry: %v", err), 404)
         return
       }
@@ -55,12 +53,12 @@ func counter(w http.ResponseWriter, r *http.Request){
       }
       defer r.Body.Close()
       
-      if _,err := c.Store(ctx,"Counter");err!=nil{
+      if _,err := c.Store(ctx);err!=nil{
         http.Error(w, fmt.Sprintf("Can't process entity: %s",err.Error()), 422)
         return
       }
       
-      if err:= c.Count(ctx, "Counter");err!=nil{
+      if err:= c.Collect(ctx);err!=nil{
         http.Error(w, fmt.Sprintf("Broken link: %s",err.Error()), 422)
         return
       }
@@ -95,11 +93,11 @@ func list(w http.ResponseWriter, r *http.Request){
         _,ok := set[name]
 
         if !ok {
-          c := Entity{name,"0"}
-          if err := c.Count(ctx, "Counter");err!=nil{
+          c := Counter{name,"0"}
+          if err := c.Collect(ctx);err!=nil{
             set[name] = err.Error()
           } else {
-            set[name] = c.Payload
+            set[name] = c.Count
           }
         }
       }
