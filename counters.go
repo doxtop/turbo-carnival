@@ -3,7 +3,6 @@ package counters
 import (
   "fmt"
   "strings"
-  "html/template"
   "net/http"
   "encoding/json"
   "google.golang.org/appengine"
@@ -32,14 +31,9 @@ func create(w http.ResponseWriter, r *http.Request){
 
 // get,update counter value
 func counter(w http.ResponseWriter, r *http.Request){
-  ctx   := appengine.NewContext(r)
-  k,err := datastore.DecodeKey(strings.Split(strings.TrimSpace(r.URL.Path), "/")[2]); 
-
-  if err!=nil{
-    http.Error(w, fmt.Sprintf("Mailformed key: %v", err), 422)
-    return
-  }
-  c := Counter{k.Encode(),"0"}
+  ctx := appengine.NewContext(r)
+  name:= strings.Split(strings.TrimSpace(r.URL.Path), "/")[2]
+  c   := Counter{name,"0"}
 
   switch r.Method {
     case "GET": 
@@ -48,11 +42,13 @@ func counter(w http.ResponseWriter, r *http.Request){
         return
       }
     case "PUT","POST":
+
       if err := json.NewDecoder(r.Body).Decode(&c); err!=nil{
         http.Error(w, fmt.Sprintf("Mailformed counter: %v", err), 422)
       }
       defer r.Body.Close()
-      
+      inc := c
+
       if _,err := c.Store(ctx);err!=nil{
         http.Error(w, fmt.Sprintf("Can't process entity: %s",err.Error()), 422)
         return
@@ -62,11 +58,13 @@ func counter(w http.ResponseWriter, r *http.Request){
         http.Error(w, fmt.Sprintf("Broken link: %s",err.Error()), 422)
         return
       }
+      // inconsistent here, the value will be updated later
+      c.Inc(inc)
     default:
       http.Error(w, fmt.Sprintf("Method not supported %v", r.Method), 405)
       return
   }
-
+  
   w.Header().Set("Content-Type","application-json")
   json.NewEncoder(w).Encode(&c)  
 }
@@ -89,11 +87,14 @@ func list(w http.ResponseWriter, r *http.Request){
         if(err == datastore.Done){ break }
         if(err!=nil){ break }
         
-        name :=  strings.Split(k.StringID(), "-")[1]
+        name :=  strings.Split(k.StringID(), "-")[0]
         _,ok := set[name]
 
         if !ok {
           c := Counter{name,"0"}
+          
+          log.Infof(ctx,"Collect %v", c)
+
           if err := c.Collect(ctx);err!=nil{
             set[name] = err.Error()
           } else {
@@ -104,7 +105,7 @@ func list(w http.ResponseWriter, r *http.Request){
 
       // map shoud somehow be serialized without this slice
       for k := range set {
-        cs = append(cs, Entity{k,set[k]})
+        cs = append(cs, Counter{k,set[k]})
       }
       
       w.Header().Set("Content-Type","application-json")
@@ -117,24 +118,11 @@ func list(w http.ResponseWriter, r *http.Request){
   }
 }
 
-func persist(w http.ResponseWriter, r *http.Request){
-  //ctx := appengine.NewContext(r)
-}
-
 // entry point
 func init() {
-  http.HandleFunc("/counters/persist", persist)
   http.HandleFunc("/tasks/",          status)
   http.HandleFunc("/counters/queue",  queue)
   http.HandleFunc("/counters",        list)
   http.HandleFunc("/counter/",        counter)
   http.HandleFunc("/counter",         create)
-  http.HandleFunc("/",                index)
-}
-
-func index(w http.ResponseWriter, r *http.Request){
-  if err := template.Must(template.New("conters").Parse(`
-    <!doctype html><html></html>`)).Execute(w, map[string]interface{}{}); err!=nil{
-    http.Error(w, err.Error(), 500)
-  }
 }

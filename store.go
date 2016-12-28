@@ -52,7 +52,7 @@ func (e *Counter) Set(v string){e.Count = v}
 /*
  * Store.
  *
- * 6 write ops yet
+ * 4 write ops
  */
 func (e *Counter) Store(ctx context.Context) (key *datastore.Key, err error) {
   if len(e.Name) == 0 { e.MkName() }

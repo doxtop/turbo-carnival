@@ -12,12 +12,12 @@ import (
   "google.golang.org/appengine/taskqueue"
 )
 
-type Entity struct {
+type Task struct {
   Name    string `json:"id"`
-  Payload string `json:"count" datastore:",noindex"`
+  Payload []byte `json:"value" datastore:",noindex"`
 }
 
-func (e *Entity) Key(key *datastore.Key) {e.Name = key.Encode()}
+func (e *Task) Key(key *datastore.Key) {e.Name = key.Encode()}
 
 func queue(w http.ResponseWriter, r *http.Request) {
   ctx   := appengine.NewContext(r)
@@ -39,7 +39,7 @@ func queue(w http.ResponseWriter, r *http.Request) {
   }
 
   list,_ := json.Marshal(&cs)
-  x := Entity{key.Encode(),string(list)}
+  x := Task{key.Encode(), list}
 
   _,_ = datastore.Put(ctx,key,&x)
 }
@@ -70,7 +70,7 @@ func enqueue(w http.ResponseWriter, r *http.Request) {
     return
   } else {
     k := datastore.NewKey(ctx,"Task",task.Name,0,nil)
-    c := Entity{k.Encode(), "in_progress"}
+    c := Task{k.Encode(), []byte("in_progress")}
 
     if _,err := datastore.Put(ctx,k,&c); err!=nil{
       http.Error(w,fmt.Sprintf("Queue can't be tracked: %s", err.Error) ,500)
@@ -94,7 +94,7 @@ func status(w http.ResponseWriter, r *http.Request){
     return
   }
 
-  var c Entity
+  var c Task
   if err = datastore.Get(ctx, k, &c); err!=nil {
     http.Error(w, fmt.Sprintf("No such entry: %v", err), 404)
     return
