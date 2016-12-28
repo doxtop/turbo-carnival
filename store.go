@@ -6,6 +6,7 @@ import (
   "strconv"
   "golang.org/x/net/context"
   "google.golang.org/appengine/datastore"
+  "google.golang.org/appengine/log"
 )
 
 const(
@@ -21,37 +22,33 @@ func (e *Entity) Key(key *datastore.Key) {e.Name = key.Encode()}
 func (e *Entity) Set(v string){e.Payload = v}
 func (e *Entity) Point() {e.Payload = "0"}
 
+
 /*
  * Store. check negative update effect
+ *
+ * 6 write ops yet
  */
 func (e *Entity) Store(ctx context.Context, kind string) (key *datastore.Key, err error) {
-  total,err := strconv.ParseUint(e.Payload, 10, 64)
-  if(err!=nil){
-    return
-  }
+  
+  // something wrong with that key here
+  // need to check how to create new shards 
   name:= fmt.Sprintf("%s-%d", e.Name, rand.Intn(countGroup))
   key = datastore.NewKey(ctx,kind,name,0,nil)
+
+  e1 := Entity{"", "0"}
+
+  if err := datastore.Get(ctx, key, &e1); err!=nil && err != datastore.ErrNoSuchEntity{
+    return nil, err
+  }
+
+  counter,_ := strconv.ParseUint( e.Payload, 10, 64)
+  inc,    _ := strconv.ParseUint(e1.Payload, 10, 64)
+  counter+=inc
   
-  err = datastore.RunInTransaction(ctx, func(ctx context.Context) error {
-    e1 := Entity{"", "0"}
-
-    if err := datastore.Get(ctx, key, &e1); err!=nil && err != datastore.ErrNoSuchEntity{
-      return err
-    }
-
-    v,err := strconv.ParseUint(e1.Payload, 10, 64)
-    if (err != nil){
-      return err
-    }
-    total += v
-
-    e.Set(strconv.FormatUint(uint64(total), 10))
+  e.Set(strconv.FormatUint(uint64(counter), 10))
     
-    _,err = datastore.Put(ctx,key,e);
-
-    return err
-
-  }, nil)
+  key,err = datastore.Put(ctx,key,e);
+  log.Infof(ctx,"Actually in db: %v, counter:%v",key, counter)
   return
 }
 

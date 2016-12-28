@@ -8,8 +8,12 @@ import (
   "encoding/json"
   "google.golang.org/appengine"
   "google.golang.org/appengine/datastore"
+  //"google.golang.org/appengine/log"
 )
 
+/*
+ * 
+ */
 func create(w http.ResponseWriter, r *http.Request){
   if(r.Method != "POST"){
     http.Error(w, "Method not supported", 405)
@@ -132,73 +136,7 @@ func init() {
 
 func index(w http.ResponseWriter, r *http.Request){
   if err := template.Must(template.New("conters").Parse(`
-    <!doctype html>
-    <html>
-      <head><title>counters</title></head>
-      <body><dl>
-        <dt>create counter</dt>
-        <dt>curl -i -X POST -H "Content-length:0" https://focus-pottery-153219.appspot.com/counter</dt>
-        <dd><pre><code>HTTP/1.1 200 OK
-              Content-Type: application-json
-              X-Cloud-Trace-Context: 5aab2330e3e9baa31ea787216eb06eee;o=1
-              Date: Tue, 27 Dec 2016 15:53:24 GMT
-              Server: Google Frontend
-              Content-Length: 72
-              Alt-Svc: quic=":443"; ma=2592000; v="35,34"
-
-            {"id":"ahZlfmZvY3VzLXBvdHRlcnktMTUzMjE5cgsLEgdDb3VudGVyDA","count":"0"}
-          </code></pre>
-        </dd>
-
-        <dt>check counter value</dt>
-        <dt>curl -i -X GET https://focus-pottery-153219.appspot.com/counter/ahZlfmZvY3VzLXBvdHRlcnktMTUzMjE5cgsLEgdDb3VudGVyDA</dt>
-        <dd><pre><code>
-            HTTP/1.1 200 OK
-            Content-Type: application-json
-            X-Cloud-Trace-Context: e8e4c7256e5937bcfa344491a552ef40;o=1
-            Date: Tue, 27 Dec 2016 15:56:24 GMT
-            Server: Google Frontend
-            Content-Length: 72
-            Alt-Svc: quic=":443"; ma=2592000; v="35,34"
-
-            {"id":"ahZlfmZvY3VzLXBvdHRlcnktMTUzMjE5cgsLEgdDb3VudGVyDA","count":"0"}
-          </code></pre></dd>
-
-          <dt>update counter</dt>
-          <dt>curl -i -X POST https://focus-pottery-153219.appspot.com/counter/ahZlfmZvY3VzLXBvdHRlcnktMTUzMjE5cgsLEgdDb3VudGVyDA 
-            -d '{"id":"ahZlfmZvY3VzLXBvdHRlcnktMTUzMjE5cgsLEgdDb3VudGVyDA", "count": "12"}'</dt>
-          <dd><pre><code>
-            HTTP/1.1 200 OK
-            Content-Type: application-json
-            X-Cloud-Trace-Context: 9984029b8cb1654918d1fc6d9b2a4959;o=1
-            Date: Tue, 27 Dec 2016 16:01:47 GMT
-            Server: Google Frontend
-            Content-Length: 73
-            Alt-Svc: quic=":443"; ma=2592000; v="35,34"
-
-            {"id":"ahZlfmZvY3VzLXBvdHRlcnktMTUzMjE5cgsLEgdDb3VudGVyDA","count":"12"}
-            </code></pre></dd>
-
-          <dt>enqueue task</dt>
-          <dt>curl -i -X POST http://localhost:8080/counters 
-            -d '[{"id":"ahZlfmZvY3VzLXBvdHRlcnktMTUzMjE5cgsLEgdDb3VudGVyDA","count":"112"}]'
-          </dt>
-          <dd>
-          <pre><code>
-            HTTP/1.1 200 OK
-            content-type: application-json
-            Cache-Control: no-cache
-            Expires: Fri, 01 Jan 1990 00:00:00 GMT
-            Content-Length: 90
-            Server: Development/2.0
-            Date: Tue, 27 Dec 2016 16:06:57 GMT
-
-            {"id":"ahhkZXZ-Zm9jdXMtcG90dGVyeS0xNTMyMTlyDwsSBFRhc2siBXRhc2sxDA","count":"in_progress"}
-          </code></pre>
-          </dd>
-
-      </dl></body>
-    </html>`)).Execute(w, map[string]interface{}{}); err!=nil{
+    <!doctype html><html></html>`)).Execute(w, map[string]interface{}{}); err!=nil{
     http.Error(w, err.Error(), 500)
   }
 }
