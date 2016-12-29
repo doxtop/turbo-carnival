@@ -1,0 +1,4 @@
+#!/bin/bash
+
+curl -i -X GET http://localhost:8080/counter/"$@";
+#curl -i -X GET https://focus-pottery-153219.appspot.com/counter/"$@";

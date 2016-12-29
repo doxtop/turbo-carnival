@@ -3,6 +3,7 @@ package counters
 import (
   "fmt"
   "strings"
+  
   "bytes"
   "net/http"
   "io/ioutil"
@@ -10,11 +11,12 @@ import (
   "google.golang.org/appengine"
   "google.golang.org/appengine/datastore"
   "google.golang.org/appengine/taskqueue"
+  
 )
 
 type Task struct {
-  Name    string `json:"id"`
-  Payload []byte `json:"value" datastore:",noindex"`
+  Name    string 
+  Payload []byte `datastore:",noindex"`
 }
 
 func (e *Task) Key(key *datastore.Key) {e.Name = key.Encode()}
@@ -99,8 +101,8 @@ func status(w http.ResponseWriter, r *http.Request){
     http.Error(w, fmt.Sprintf("No such entry: %v", err), 404)
     return
   }
+  st := json.RawMessage(c.Payload)
   
   w.Header().Set("Content-Type","application-json")
-  c.Key(k)
-  json.NewEncoder(w).Encode(&c)
+  json.NewEncoder(w).Encode(&st)
 }

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+curl -i -X POST http://localhost:8080/counter
+#curl -i -X POST -H "Content-length:0" https://focus-pottery-153219.appspot.com/counter
